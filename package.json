@@ -1,0 +1,18 @@
+{
+  "name": "crashzin-ofc-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portfólio Crashzin_ofc com autenticação de dono via sessão no servidor",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.1",
+    "googleapis": "^189.0.0",
+    "helmet": "^8.0.0",
+    "multer": "^2.5.0"
+  }
+}

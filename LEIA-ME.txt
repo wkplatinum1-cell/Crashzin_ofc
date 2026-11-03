@@ -1,0 +1,26 @@
+# Crashzin_ofc — portfólio com login de dono
+
+## O que foi atualizado
+- Login verificado pelo servidor, sem senha embutida no HTML.
+- Cookie de sessão `HttpOnly` e `SameSite=Strict`, com validade de 2 horas.
+- Limite de tentativas de login.
+- Espaçamento maior entre seções e cards para o site não parecer achatado.
+- Layout adaptável para celular e computador.
+
+## Como iniciar no Windows
+1. Instale o Node.js LTS: https://nodejs.org/
+2. Extraia esta pasta para um local fácil, por exemplo a Área de Trabalho.
+3. Copie `.env.example` e renomeie a cópia para `.env`.
+4. Abra `.env` no VS Code e defina:
+   - `OWNER_PASSWORD`: uma senha forte sua, com 12 ou mais caracteres.
+   - `SESSION_SECRET`: um segredo aleatório longo (32+ caracteres). Não compartilhe esse arquivo.
+5. Abra o terminal do VS Code nessa pasta.
+6. Rode `npm install`.
+7. Rode `npm start`.
+8. Abra `http://localhost:3000` no navegador. **Não use o Live Server** para este projeto: o login precisa do servidor Node.
+9. Clique em “Área do dono” e use a senha que você configurou no `.env`.
+
+## Importante sobre edição e publicação
+Este pacote coloca a autenticação no servidor, mas a versão original do portfólio guarda parte das edições no próprio navegador (localStorage) e os vídeos adicionados localmente não são enviados para hospedagem. Portanto, isso não transforma automaticamente essas alterações em conteúdo salvo no servidor para todos os visitantes. Para que as alterações do painel sejam realmente gravadas no site publicado, é necessário conectar os botões de edição a rotas administrativas protegidas que salvem os dados em um banco/armazenamento no servidor.
+
+Para publicar na internet, use HTTPS e configure um armazenamento de sessão persistente (o armazenamento padrão do `express-session` é apenas para desenvolvimento). Nunca envie o arquivo `.env` para o GitHub nem publique sua senha.
