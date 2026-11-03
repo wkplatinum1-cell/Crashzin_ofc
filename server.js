@@ -8,6 +8,12 @@ const multer = require('multer');
 const crypto = require('crypto');
 const { google } = require('googleapis');
 require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
 const app = express();
 const oauth2Client = new google.auth.OAuth2(
@@ -60,17 +66,35 @@ fileFilter: (_req, file, cb) => {
   cb(null, true);
 }
 });
-function getVideos() {
-  try {
-    const data = JSON.parse(fs.readFileSync(VIDEOS_FILE, 'utf8'));
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
+async function getVideos() {
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar vídeos no Supabase:', error);
+    throw error;
   }
+
+  return data.map(video => ({
+    id: video.id,
+    driveFileId: video.drive_file_id,
+    driveThumbnailId: video.drive_thumbnail_id,
+    filename: video.filename,
+    thumbnail: video.thumbnail,
+    title: video.title,
+    category: video.category,
+    description: video.description,
+    size: video.size,
+    createdAt: video.created_at
+  }));
 }
 
-function getStorageUsage() {
-  return getVideos().reduce((total, video) => {
+async function getStorageUsage() {
+  const videos = await getVideos();
+
+  return videos.reduce((total, video) => {
     if (!video.filename) return total;
 
     const filePath = path.join(UPLOAD_DIR, video.filename);
@@ -81,10 +105,29 @@ function getStorageUsage() {
   }, 0);
 }
 
-function saveVideos(videos) {
-  fs.writeFileSync(VIDEOS_FILE, JSON.stringify(videos, null, 2), 'utf8');
-}
+async function saveVideos(videos) {
+  const registros = videos.map(video => ({
+    id: video.id,
+    drive_file_id: video.driveFileId || null,
+    drive_thumbnail_id: video.driveThumbnailId || null,
+    filename: video.filename || null,
+    thumbnail: video.thumbnail || null,
+    title: video.title,
+    category: video.category,
+    description: video.description || null,
+    size: video.size || 0,
+    created_at: video.createdAt || new Date().toISOString()
+  }));
 
+  const { error } = await supabase
+    .from('videos')
+    .upsert(registros);
+
+  if (error) {
+    console.error('Erro ao salvar vídeos no Supabase:', error);
+    throw error;
+  }
+}
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 if (!fs.existsSync(VIDEOS_FILE)) {
@@ -203,32 +246,40 @@ app.post('/api/auth/logout', (req, res, next) => {
 // Exemplo de rota protegida: qualquer operação administrativa no servidor deve usar este middleware.
 app.get('/api/admin/check', requireOwner, (_req, res) => res.json({ ok: true, message: 'Sessão de dono validada no servidor.' }));
 // Lista os vídeos e informa o uso do armazenamento.
-app.get('/api/videos', (_req, res) => {
-  const videos = getVideos().filter(video => {
-    if (video.driveFileId) return true;
+app.get('/api/videos', async (_req, res) => {
+  try {
+    const videos = (await getVideos()).filter(video => {
+      if (video.driveFileId) return true;
 
-    return video.filename &&
-      fs.existsSync(path.join(UPLOAD_DIR, video.filename));
-  });
+      return video.filename &&
+        fs.existsSync(path.join(UPLOAD_DIR, video.filename));
+    });
 
-  res.json({
-    videos: videos.map(video => ({
-      id: video.id,
-      title: video.title,
-      category: video.category,
-      description: video.description,
-      filename: video.filename || null,
-      thumbnail: video.thumbnail || null,
-      driveFileId: video.driveFileId || null,
-      driveThumbnailId: video.driveThumbnailId || null,
-      size: video.size || 0,
-      url: video.driveFileId
-        ? `https://drive.google.com/file/d/${video.driveFileId}/preview`
-        : `/api/videos/file/${encodeURIComponent(video.id)}`
-    })),
-    storageUsed: getStorageUsage(),
-    storageLimit: STORAGE_LIMIT
-  });
+    res.json({
+      videos: videos.map(video => ({
+        id: video.id,
+        title: video.title,
+        category: video.category,
+        description: video.description,
+        filename: video.filename || null,
+        thumbnail: video.thumbnail || null,
+        driveFileId: video.driveFileId || null,
+        driveThumbnailId: video.driveThumbnailId || null,
+        size: video.size || 0,
+        url: video.driveFileId
+          ? `https://drive.google.com/file/d/${video.driveFileId}/preview`
+          : `/api/videos/file/${encodeURIComponent(video.id)}`
+      })),
+      storageUsed: await getStorageUsage(),
+      storageLimit: STORAGE_LIMIT
+    });
+  } catch (error) {
+    console.error('Erro ao carregar vídeos:', error);
+    res.status(500).json({
+      ok: false,
+      message: 'Erro ao carregar vídeos.'
+    });
+  }
 });
 
 // Envia um vídeo, exigindo login do dono.
@@ -295,9 +346,7 @@ app.post('/api/videos', requireOwner, upload.fields([
       createdAt: new Date().toISOString()
     };
 
-    const videos = getVideos();
-    videos.push(video);
-    saveVideos(videos);
+    await saveVideos([video]);
 
     res.status(201).json({
       ok: true,
@@ -339,8 +388,8 @@ app.post('/api/videos', requireOwner, upload.fields([
 });
   
 // Reproduz um vídeo cadastrado.
-app.get('/api/videos/file/:id', (req, res) => {
-  const video = getVideos().find(item => item.id === req.params.id);
+app.get('/api/videos/file/:id', async (req, res) => {
+  const video = (await getVideos()).find(item => item.id === req.params.id);
 
   if (!video) {
     return res.status(404).json({ ok: false, message: 'Vídeo não encontrado.' });
@@ -355,7 +404,7 @@ app.get('/api/videos/file/:id', (req, res) => {
   res.sendFile(filePath);
 });
 app.get('/api/videos/thumbnail/:id', async (req, res) => {
-  const video = getVideos().find(item => item.id === req.params.id);
+  const video = (await getVideos()).find(item => item.id === req.params.id);
 
   if (!video) {
     return res.status(404).json({
@@ -413,53 +462,45 @@ app.get('/api/videos/thumbnail/:id', async (req, res) => {
 
 // Exclui um vídeo e libera o espaço ocupado.
 app.delete('/api/videos/:id', requireOwner, async (req, res) => {
-  const videos = getVideos();
-  const video = videos.find(item => item.id === req.params.id);
-
-  if (!video) {
-    return res.status(404).json({
-      ok: false,
-      message: 'Vídeo não encontrado.'
-    });
-  }
-
   try {
-    // Apaga o vídeo do Google Drive, se for um vídeo novo
+    const videos = await getVideos();
+    const video = videos.find(item => item.id === req.params.id);
+
+    if (!video) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Vídeo não encontrado.'
+      });
+    }
+
     if (video.driveFileId) {
-      await drive.files.delete({
-        fileId: video.driveFileId
-      });
+      await drive.files.delete({ fileId: video.driveFileId });
     }
 
-    // Apaga a thumbnail do Drive, se existir
     if (video.driveThumbnailId) {
-      await drive.files.delete({
-        fileId: video.driveThumbnailId
-      });
+      await drive.files.delete({ fileId: video.driveThumbnailId });
     }
 
-    // Mantém a exclusão dos vídeos antigos armazenados localmente
     if (video.filename) {
       const filePath = path.join(UPLOAD_DIR, video.filename);
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
     if (video.thumbnail) {
       const thumbnailPath = path.join(UPLOAD_DIR, video.thumbnail);
-
-      if (fs.existsSync(thumbnailPath)) {
-        fs.unlinkSync(thumbnailPath);
-      }
+      if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
     }
 
-    saveVideos(videos.filter(item => item.id !== video.id));
+    const { error } = await supabase
+      .from('videos')
+      .delete()
+      .eq('id', video.id);
+
+    if (error) throw error;
 
     res.json({
       ok: true,
-      storageUsed: getStorageUsage(),
+      storageUsed: await getStorageUsage(),
       storageLimit: STORAGE_LIMIT
     });
 
@@ -468,11 +509,10 @@ app.delete('/api/videos/:id', requireOwner, async (req, res) => {
 
     res.status(500).json({
       ok: false,
-      message: 'Não foi possível excluir o vídeo do Google Drive.'
+      message: 'Não foi possível excluir o vídeo.'
     });
   }
 });
-
 app.use(express.static(path.join(__dirname), {
   index: 'index.html',
   dotfiles: 'ignore',
