@@ -1,1 +1,8 @@
-
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "https://crashzin-ofc.onrender.com/$1"
+    }
+  ]
+}
