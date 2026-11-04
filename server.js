@@ -153,6 +153,7 @@ if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
 app.disable('x-powered-by');
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '30kb' }));
+app.set('trust proxy', 1);
 app.use(session({
   name: 'crashzin.sid',
   secret: SESSION_SECRET,
