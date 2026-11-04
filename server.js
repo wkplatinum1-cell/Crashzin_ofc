@@ -23,11 +23,19 @@ const oauth2Client = new google.auth.OAuth2(
 );
 const TOKEN_PATH = path.join(__dirname, 'token.json');
 
-if (fs.existsSync(TOKEN_PATH)) {
-  const savedTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-  oauth2Client.setCredentials(savedTokens);
+let savedTokens = null;
+
+if (process.env.GOOGLE_TOKEN_JSON_BASE64) {
+  savedTokens = JSON.parse(
+    Buffer.from(process.env.GOOGLE_TOKEN_JSON_BASE64, 'base64').toString('utf8')
+  );
+} else if (fs.existsSync(TOKEN_PATH)) {
+  savedTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
 }
 
+if (savedTokens) {
+  oauth2Client.setCredentials(savedTokens);
+}
 const drive = google.drive({
   version: 'v3',
   auth: oauth2Client
