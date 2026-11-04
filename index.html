@@ -1332,11 +1332,7 @@
     const profileKey = 'crashzinAuroraProfileV1';
     const initialProfile = { name: 'Crashzin_ofc', role: 'EDITOR DE VÍDEOS', description: 'Vídeos com ritmo, identidade e impacto visual. Aqui você encontra uma seleção dos meus trabalhos de edição — do primeiro corte ao resultado final.', about: 'Sou editor de vídeos e gosto de transformar ideias em experiências visuais. Meu foco é combinar ritmo, emoção e acabamento para criar conteúdo que se destaque.', quote: 'Transformando ideias em vídeos inesquecíveis.', email: '', whats: '', youtube: '', instagram: '' };
     let profile = { ...initialProfile };
-    const starter = [
-      { title: 'Projeto audiovisual', category: 'Edição de vídeos', desc: 'Adicione uma amostra sua para apresentar este trabalho.', symbol: '✦', duration: 'AMOSTRA' },
-      { title: 'Montagem gaming', category: 'Gaming', desc: 'Gameplay, trailer ou montagem dinâmica.', symbol: '◈', duration: 'AMOSTRA' },
-      { title: 'Short vertical', category: 'Shorts', desc: 'Conteúdo curto com cortes e ritmo.', symbol: 'ϟ', duration: 'AMOSTRA' }
-    ];
+    const starter = [];
     function loadProfile() { try { profile = { ...initialProfile, ...JSON.parse(localStorage.getItem(profileKey) || '{}') } } catch { } applyProfile() }
     
 function applyProfile() {
