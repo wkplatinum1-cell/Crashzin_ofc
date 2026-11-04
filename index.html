@@ -941,6 +941,48 @@
         height: 220px
       }
     }
+    /* Ajuste da barra lateral apenas no desktop */
+@media (min-width: 901px) {
+  .layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  aside {
+    padding: 22px 16px;
+  }
+
+  .avatar {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 12px;
+  }
+
+  .avatar span {
+    font-size: 26px;
+  }
+
+  .brand {
+    font-size: 21px;
+  }
+
+  .role {
+    margin-top: 5px;
+    letter-spacing: 2px;
+  }
+
+  nav {
+    gap: 5px;
+    margin-top: 22px;
+  }
+
+  nav a {
+    padding: 10px 11px;
+  }
+
+  .quote {
+    font-size: 12px;
+  }
+}
   </style>
 </head>
 
